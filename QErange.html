@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>TAS QE range</title>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+}
+
+#slider {
+    width: 400px;
+}
+</style>
+
+</head>
+
+<body>
+
+
+<h2>TAS Q-E Range</h2>
+
+<label>
+Ef (meV):
+</label>
+
+<input
+    id="ef_input"
+    type="number"
+    min="3"
+    max="5"
+    step="0.1"
+    value="4.8"
+>
+
+
+<br>
+
+
+<input 
+    id="ef_slider"
+    type="range"
+    min="3"
+    max="5"
+    step="0.01"
+    value="4.8"
+>
+
+<br><br>
+
+<label>
+2θ minimum (deg):
+</label>
+
+<input 
+    id="theta_input"
+    type="number"
+    min="0"
+    max="30"
+    step="0.1"
+    value="5"
+>
+
+
+<br><br>
+
+<button onclick="updateAll()">
+Update
+</button>
+
+<div id="plot" style="width:800px;height:600px;"></div>
+
+
+<script>
+
+
+// -----------------------
+// Data
+// [M2, S2limit, Ei]
+// -----------------------
+
+const data = [
+[-35.01,27,20.08],
+[-36.03,30,19.00],
+[-36.53,32,18.50],
+[-37,32,18.05],
+[-37.05,33,18.00],
+[-37.6,34,17.50],
+[-38.17,35,17.00],
+[-38.76,36,16.50],
+[-39,36,16.31],
+[-39.39,38,16.00],
+[-40.04,39,15.50],
+[-40,38,15.53],
+[-41.01,41,14.81],
+[-41.46,42,14.50],
+[-42.23,44,14.00],
+[-43,45,13.53],
+[-43.05,46,13.50],
+[-43.91,47,13.00],
+[-44.82,49,12.50],
+[-45,50,12.41],
+[-45.8,52,12.00],
+[-46.84,54,11.50],
+[-47,54,11.43],
+[-47.96,56,11.00],
+[-48.43,57,10.80],
+[-48.92,58,10.60],
+[-48.99,58,10.57],
+[-49.41,59,10.40],
+[-49.93,60,10.20],
+[-50.01,60,10.17],
+[-50.46,62,10.00],
+[-51.01,63,9.80],
+[-51.58,64,9.60],
+[-52.16,65,9.40],
+[-52.77,67,9.20],
+[-52.99,68,9.13],
+[-53.4,69,9.00],
+[-54.05,72,8.80],
+[-54.73,73,8.60],
+[-55.01,75,8.52],
+[-55.43,79,8.40],
+[-56.16,82,8.20],
+[-56.92,87,8.00],
+[-57,89,7.98],
+[-57.72,89,7.80],
+[-58.54,90,7.60],
+[-59.02,90,7.49],
+[-59.41,90,7.40],
+[-60,90,7.27],
+[-60.31,94,7.20],
+[-61.02,96,7.05],
+[-61.26,97,7.00],
+[-62.25,98,6.80],
+[-62.98,99,6.66],
+[-63.3,99,6.60],
+[-64.39,102,6.40],
+[-64.97,102,6.30],
+[-65.55,106,6.20],
+[-66.78,109,6.00],
+[-67.03,109,5.96],
+[-68.75,111,5.70],
+[-68.96,112,5.67],
+[-70.02,112,5.52],
+[-75.03,112,4.90],
+[-84.36,112,4.03],
+[-89.28,112,3.68],
+[-89.28,112,3.0],
+[-89.28,112,2.5],
+]
+
+
+// neutron conversion
+const conv = 0.6947;
+
+
+// -----------------------
+// calculate QE range
+// -----------------------
+
+function calculateQE(Ef, thetaMinDeg){
+
+    let kf = conv*Math.sqrt(Ef);
+
+    let Qmin=[];
+    let Qmax=[];
+    let hw=[];
+
+
+    data.forEach(row=>{
+
+        let S2limit=row[1];
+        let Ei=row[2];
+
+
+        let ki=conv*Math.sqrt(Ei);
+
+
+        let omega=Ei-Ef;
+
+
+        let theta_min=thetaMinDeg*Math.PI/180;
+        let theta_max=S2limit*Math.PI/180;
+
+
+        let qmin=Math.sqrt(
+            ki*ki+kf*kf
+            -2*ki*kf*Math.cos(theta_min)
+        );
+
+
+        let qmax=Math.sqrt(
+            ki*ki+kf*kf
+            -2*ki*kf*Math.cos(theta_max)
+        );
+
+
+        Qmin.push(qmin);
+        Qmax.push(qmax);
+        hw.push(omega);
+
+    });
+
+
+    // sort by energy transfer
+    let idx=hw
+        .map((v,i)=>[v,i])
+        .sort((a,b)=>a[0]-b[0])
+        .map(x=>x[1]);
+
+
+    return {
+        hw:idx.map(i=>hw[i]),
+        Qmin:idx.map(i=>Qmin[i]),
+        Qmax:idx.map(i=>Qmax[i])
+    };
+
+}
+
+
+
+// -----------------------
+// plot
+// -----------------------
+
+function updatePlot(Ef,thetaMinDeg){
+
+    let result=calculateQE(Ef, thetaMinDeg);
+
+    let hw=result.hw;
+    let Qmin=result.Qmin;
+    let Qmax=result.Qmax;
+
+
+    // fill polygon
+    let fillTrace={
+        x:[
+            ...Qmin,
+            ...Qmax.slice().reverse()
+        ],
+
+        y:[
+            ...hw,
+            ...hw.slice().reverse()
+        ],
+
+        fill:"toself",
+        fillcolor:"rgba(150,150,150,0.35)",
+        line:{
+            width:0
+        },
+
+        name:"QE range",
+        type:"scatter"
+    };
+
+
+    let minTrace={
+        x:Qmin,
+        y:hw,
+
+        mode:"lines",
+        name:`Qmin (${thetaMinDeg.toFixed(1)}°)`
+    };
+
+
+    let maxTrace={
+        x:Qmax,
+        y:hw,
+
+        mode:"lines",
+        name:"Qmax"
+    };
+
+
+    let layout={
+
+        xaxis:{
+            title:"Q (Å⁻¹)"
+        },
+
+        yaxis:{
+            title:"ℏω (meV)"
+        },
+
+        title:
+        `TAS QE range (Ef=${Ef.toFixed(2)} meV, 2θmin=${thetaMinDeg.toFixed(1)}°)`,
+
+        showlegend:true
+    };
+
+
+    Plotly.newPlot(
+        "plot",
+        [
+            fillTrace,
+            minTrace,
+            maxTrace
+        ],
+        layout
+    );
+
+}
+
+
+
+// -----------------------
+// slider event
+// -----------------------
+
+let slider=document.getElementById("ef_slider");
+
+let efInput=document.getElementById("ef_input");
+
+
+slider.oninput=function(){
+
+    let Ef=parseFloat(this.value);
+
+    efInput.value=Ef.toFixed(2);
+
+    updateAll();
+
+}
+
+efInput.onchange=function(){
+
+    let Ef=parseFloat(this.value);
+
+
+    if(Ef<3) Ef=3;
+    if(Ef>5) Ef=5;
+
+
+    slider.value=Ef;
+
+    efInput.value=Ef.toFixed(2);
+
+
+    updateAll();
+
+}
+
+function updateAll(){
+
+
+    let Ef=parseFloat(
+        document.getElementById("ef_slider").value
+    );
+
+
+    let thetaMinDeg=parseFloat(
+        document.getElementById("theta_input").value
+    );
+
+
+    updatePlot(Ef,thetaMinDeg);
+
+}
+
+
+// initial
+updatePlot(4.8,5);
+
+
+</script>
+
+
+</body>
+</html>
