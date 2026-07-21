@@ -69,6 +69,33 @@ Ef (meV):
 <br><br>
 
 <label>
+Energy transfer minimum (meV):
+</label>
+
+<input
+    id="emin_input"
+    type="number"
+    step="0.1"
+    value="-5"
+    oninput="updateAll()"
+>
+
+
+<label>
+Energy transfer maximum (meV):
+</label>
+
+<input
+    id="emax_input"
+    type="number"
+    step="0.1"
+    value="20"
+    oninput="updateAll()"
+>
+
+<br><br>
+
+<label>
 Q minimum (Å⁻¹):
 </label>
 
@@ -251,7 +278,14 @@ function calculateQE(Ef, thetaMinDeg){
 // plot
 // -----------------------
 
-function updatePlot(Ef,thetaMinDeg,QminRange,QmaxRange){
+function updatePlot(
+        Ef,
+        thetaMinDeg,
+        QminRange,
+        QmaxRange,
+        EminRange,
+        EmaxRange
+    ){
 
     let result=calculateQE(Ef, thetaMinDeg);
 
@@ -312,8 +346,18 @@ function updatePlot(Ef,thetaMinDeg,QminRange,QmaxRange){
         },
 
         yaxis:{
-            title:"ℏω (meV)"
+            title:"ℏω (meV)",
+            range:[
+                EminRange,
+                EmaxRange
+            ]
         },
+
+        title:
+        `CTAX QE range (Ef=${Ef.toFixed(2)} meV, 2θmin=${thetaMinDeg.toFixed(1)}°)`,
+
+        showlegend:true
+    };
 
 
     Plotly.react(
@@ -389,19 +433,37 @@ function updateAll(){
         document.getElementById("qmax_input").value
     );
 
+    let EminRange=parseFloat(
+        document.getElementById("emin_input").value
+    );
+
+
+    let EmaxRange=parseFloat(
+        document.getElementById("emax_input").value
+    );
+
 
     updatePlot(
         Ef,
         thetaMinDeg,
         QminRange,
-        QmaxRange
+        QmaxRange,
+        EminRange,
+        EmaxRange
     );
 
 }
 
 
 // initial
-updatePlot(4.8,5,0,3);
+updatePlot(
+    4.8,
+    5,
+    0,
+    3,
+    -5,
+    20
+);
 
 
 </script>
